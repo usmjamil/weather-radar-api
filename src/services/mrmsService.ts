@@ -89,8 +89,19 @@ export class MrmsService {
       try {
         const pythonServiceUrl = process.env.PYTHON_SERVICE_URL || 'http://localhost:8000';
         const response = await axios.post(`${pythonServiceUrl}/parse`, {
-          url: config.mrms.url
-        }, { timeout: 60000 });
+          url: config.mrms.url,
+          bounds: {
+            north: 50.0,   // Northern US border
+            south: 25.0,   // Southern US/Mexico border  
+            east: -65.0,    // Eastern US coast
+            west: -125.0    // Western US coast
+          }
+        }, {
+          timeout: 120000, // 2 minute timeout
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
 
         console.log(`Successfully parsed ${response.data.points.length} radar points from Python service`);
         return response.data.points;
