@@ -4,6 +4,10 @@ import path from 'path';
 import { gunzipSync } from 'zlib';
 import { RadarData, RadarPoint } from '../types';
 import { config } from '../config';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 const CACHE_DIR = config.cache.directory;
 const GRIB_FILE = path.join(CACHE_DIR, 'latest.grib2');
@@ -29,6 +33,7 @@ export class MrmsService {
       fs.writeFileSync(GRIB_FILE, gribData);
 
       const timestamp = new Date().toISOString();
+      const radarPoints = await this.parseGrib2Data(GRIB_FILE);
 
       const radarData: RadarData = {
         timestamp,
@@ -38,7 +43,7 @@ export class MrmsService {
           east: -65.0,
           west: -125.0
         },
-        data: this.generateMockRadarData()
+        data: radarPoints
       };
 
       return radarData;
@@ -74,7 +79,32 @@ export class MrmsService {
   }
 
   static async parseGrib2Data(filePath: string): Promise<RadarPoint[]> {
-    console.log('GRIB2 parsing not implemented - using mock data');
-    return this.generateMockRadarData();
+    try {
+      console.log('Parsing GRIB2 data using Python cfgrib service...');
+
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`GRIB2 file not found: ${filePath}`);
+      }
+
+      try {
+        const pythonServiceUrl = process.env.PYTHON_SERVICE_URL || 'http://localhost:8000';
+        const response = await axios.post(`${pythonServiceUrl}/parse`, {
+          file_path: filePath
+        }, { timeout: 30000 });
+
+        console.log(`Successfully parsed ${response.data.points.length} radar points from Python service`);
+        return response.data.points;
+
+      } catch (serviceError) {
+        console.warn('Python cfgrib service not available, falling back to mock data');
+        return this.generateMockRadarData();
+      }
+
+    } catch (error) {
+      console.error('Error parsing GRIB2 data:', error);
+      // Fall back to mock data if parsing fails
+      console.log('Falling back to mock data due to parsing error');
+      return this.generateMockRadarData();
+    }
   }
 }
