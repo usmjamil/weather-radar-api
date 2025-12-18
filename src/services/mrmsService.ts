@@ -38,10 +38,10 @@ export class MrmsService {
       const radarData: RadarData = {
         timestamp,
         bounds: {
-          north: 50.0,
-          south: 25.0,
-          east: -65.0,
-          west: -125.0
+          north: 90.0,
+          south: -90.0,
+          east: 180.0,
+          west: -180.0
         },
         data: radarPoints
       };
